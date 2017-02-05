@@ -98,9 +98,8 @@ class QDelegate<ReturnValue(Args...)>
             this->invoker = new QDelegateInvoker<ReturnValue(Args...)>(functor);
         }
 
-        template<typename Method>
-        QDelegate(Method method)  {
-            this->invoker = new QDelegateInvoker<Method,ReturnValue(Args...)>(method);
+        QDelegate(ReturnValue (*method)(Args...))  {
+            this->invoker = new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method);
         }
 
         template<typename Object>
