@@ -156,29 +156,30 @@ class QDelegate<ReturnValue(Args...)>
             this->invoker = new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method);
         }
 
-        template<typename Object>
+        template<typename Object, typename = std::enable_if_t<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>>
         QDelegate(Object* object, ReturnValue (Object::*method)(Args...)) {
+            // object check
+            if(!object) {
+                qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
+                return;
+            }
+            this->invoker = new QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method);
+        }
+
+        template<typename Object, typename = std::enable_if_t<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>>
+        QDelegate(QObject* object, ReturnValue (Object::*method)(Args...)) {
             // object check
             if(!object) {
                 qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
                 return;
             }
-
-            // if qobject base, use QObject invoker
-            if(std::is_base_of<QObject, typename ValueType<Object>::type>::value) {
-                this->invoker = new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method);
-            }
-
-            // otherwise use default object->member invoker
-            else {
-                this->invoker = new QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method);
-            }
+            this->invoker = new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method);
         }
 
         QDelegate(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) {
             // object check
             if(!object) {
-                qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
+                qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
                 return;
             }
             this->invoker = new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType);
