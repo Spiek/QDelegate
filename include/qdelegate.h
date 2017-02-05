@@ -103,9 +103,9 @@ class QDelegate<ReturnValue(Args...)>
             this->invoker = new QDelegateInvoker<Method,ReturnValue(Args...)>(method);
         }
 
-        template<typename Object, typename Method, typename std::enable_if<!std::is_base_of<QObject, Object>::value>::type>
-        QDelegate(Object* object, Method method) {
-            this->invoker = new QDelegateInvoker<Object,Method,ReturnValue(Args...)>(object, method);
+        template<typename Object>
+        QDelegate(Object* object, ReturnValue (Object::*method)(Args...)) {
+           this->invoker = new QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method);
         }
 
         QDelegate(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) {
