@@ -152,22 +152,39 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
         // invoker for non void return value
         ReturnValue invokeHelper(std::false_type const &, Args... args)
         {
-            // if no valid object is present, exit
+            // if no valid object is present, exit with default value
             ReturnValue retValue = {};
             if(!this->object) {
                 qWarning("QDelegate<QObject,QByteArray>: object is not valid, return default constructed value");
                 return retValue;
             }
 
-            // invoke
-            if(!this->object->metaObject()->invokeMethod(this->object,
+            // Queued Invoke: do an invoke without ReturnValue, and return the default value
+            if(this->conType == Qt::QueuedConnection)
+            {
+                if(this->object->metaObject()->invokeMethod(this->object,
+                                                            this->method,
+                                                            this->conType,
+                                                            QArgument<Args>(QVariant(args).typeName(), args)...))
+                {
+                    return retValue;
+                }
+            }
+
+            // Non Queued invoke: invoke and return retValue on success
+            else {
+                if(this->object->metaObject()->invokeMethod(this->object,
                                                          this->method,
                                                          this->conType,
                                                          QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
                                                          QArgument<Args>(QVariant(args).typeName(), args)...))
-            {
-                qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
-            }
+                {
+                    return retValue;
+                }
+           }
+
+            // if we reach this point there was an invoke error, so show warning and return default value
+            qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
             return retValue;
         }
 
