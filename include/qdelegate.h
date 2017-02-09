@@ -125,34 +125,49 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
             QObject::disconnect(this->deleteConnection);
         }
         virtual ReturnValue invoke(Args... args) override {
-            // if no valid object is present, return default constrcuted value
-            if(!this->object) {
-                qWarning("QDelegate<QObject,const char*>::invoke: object is not valid, return default constructed value");
-                return;
-            }
             typename IsVoidType<ReturnValue>::type vType;
-            return this->invokePrivate(vType, args...);
+            return this->invokeHelper(vType, args...);
         }
 
     private:
         // invoker for void return value
-        ReturnValue invokePrivate(std::true_type const &, Args... args)
+        ReturnValue invokeHelper(std::true_type const &, Args... args)
         {
-            object->metaObject()->invokeMethod(this->object,
-                                               this->method,
-                                               this->conType,
-                                               QArgument<Args>(QVariant(args).typeName(), args)...);
+            // if no valid object is present, exit
+            if(!this->object) {
+                qWarning("QDelegate<QObject,QByteArray>: object is not valid, return default constructed value");
+                return;
+            }
+
+            // invoke
+            if(!this->object->metaObject()->invokeMethod(this->object,
+                                                         this->method,
+                                                         this->conType,
+                                                         QArgument<Args>(QVariant(args).typeName(), args)...))
+            {
+                qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
+            }
         }
 
         // invoker for non void return value
-        ReturnValue invokePrivate(std::false_type const &, Args... args)
+        ReturnValue invokeHelper(std::false_type const &, Args... args)
         {
-            ReturnValue retValue;
-            object->metaObject()->invokeMethod(this->object,
-                                               this->method,
-                                               this->conType,
-                                               QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
-                                               QArgument<Args>(QVariant(args).typeName(), args)...);
+            // if no valid object is present, exit
+            ReturnValue retValue = {};
+            if(!this->object) {
+                qWarning("QDelegate<QObject,QByteArray>: object is not valid, return default constructed value");
+                return retValue;
+            }
+
+            // invoke
+            if(!this->object->metaObject()->invokeMethod(this->object,
+                                                         this->method,
+                                                         this->conType,
+                                                         QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
+                                                         QArgument<Args>(QVariant(args).typeName(), args)...))
+            {
+                qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
+            }
             return retValue;
         }
 
