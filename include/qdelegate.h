@@ -28,6 +28,16 @@ T& convertToRef(T* p) { return *p; }
 template<class T>
 T& convertToRef(T& r) { return r; }
 
+
+// If T is void type, type is std::true_type otherwise std::false_type
+template<typename T>
+struct IsVoidType
+{ typedef std::false_type type; };
+
+template<>
+struct IsVoidType<void>
+{ typedef std::true_type type; };
+
 //
 // Base Invoker
 // and Invoker for function objects
@@ -108,6 +118,28 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
             QObject::disconnect(this->deleteConnection);
         }
         virtual ReturnValue invoke(Args... args) override {
+            typename IsVoidType<ReturnValue>::type vType;
+            return this->invokePrivate(vType, args...);
+        }
+
+    private:
+        // invoker for void return value
+        ReturnValue invokePrivate(std::true_type const &, Args... args)
+        {
+            // if no valid object is present, return default constrcuted value
+            if(!this->object) {
+                qWarning("QDelegate<QObject,const char*>::invoke: object is not valid, return default constructed value");
+                return;
+            }
+            object->metaObject()->invokeMethod(this->object,
+                                               QDelegateInvoker::extractMethodName(method),
+                                               this->conType,
+                                               QArgument<Args>(QVariant(args).typeName(), args)...);
+        }
+
+        // invoker for non void return value
+        ReturnValue invokePrivate(std::false_type const &, Args... args)
+        {
             // if no valid object is present, return default constrcuted value
             if(!this->object) {
                 qWarning("QDelegate<QObject,const char*>::invoke: object is not valid, return default constructed value");
@@ -122,7 +154,6 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
             return retValue;
         }
 
-    private:
         static QByteArray extractMethodName(const char *member)
         {
             // code from qt source (4.8.2)
