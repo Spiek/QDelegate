@@ -1,8 +1,12 @@
 #ifndef QDELEGATE_H
 #define QDELEGATE_H
 
-#include <QObject>
+// std lib
 #include <functional>
+
+// qt
+#include <QObject>
+
 #include <QArgument>
 #include <QGenericArgument>
 #include <QVariant>
@@ -112,12 +116,20 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
 {
     public:
         QDelegateInvoker(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) : conType(conType), object(object), method(method) {
-            this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
+            this->initialize();
+        }
+        QDelegateInvoker(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) : conType(conType), object(object), method(method) {
+            this->initialize();
         }
         ~QDelegateInvoker() {
             QObject::disconnect(this->deleteConnection);
         }
         virtual ReturnValue invoke(Args... args) override {
+            // if no valid object is present, return default constrcuted value
+            if(!this->object) {
+                qWarning("QDelegate<QObject,const char*>::invoke: object is not valid, return default constructed value");
+                return;
+            }
             typename IsVoidType<ReturnValue>::type vType;
             return this->invokePrivate(vType, args...);
         }
@@ -126,13 +138,8 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
         // invoker for void return value
         ReturnValue invokePrivate(std::true_type const &, Args... args)
         {
-            // if no valid object is present, return default constrcuted value
-            if(!this->object) {
-                qWarning("QDelegate<QObject,const char*>::invoke: object is not valid, return default constructed value");
-                return;
-            }
             object->metaObject()->invokeMethod(this->object,
-                                               QDelegateInvoker::extractMethodName(method),
+                                               this->method,
                                                this->conType,
                                                QArgument<Args>(QVariant(args).typeName(), args)...);
         }
@@ -140,35 +147,37 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
         // invoker for non void return value
         ReturnValue invokePrivate(std::false_type const &, Args... args)
         {
-            // if no valid object is present, return default constrcuted value
-            if(!this->object) {
-                qWarning("QDelegate<QObject,const char*>::invoke: object is not valid, return default constructed value");
-                return ReturnValue();
-            }
             ReturnValue retValue;
             object->metaObject()->invokeMethod(this->object,
-                                               QDelegateInvoker::extractMethodName(method),
+                                               this->method,
                                                this->conType,
                                                QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
                                                QArgument<Args>(QVariant(args).typeName(), args)...);
             return retValue;
         }
 
-        static QByteArray extractMethodName(const char *member)
+        void initialize()
         {
-            // code from qt source (4.8.2)
-            // src: qtimer.cpp
-            // line: 354
-            const char* bracketPosition = strchr(member, '(');
-            if (!bracketPosition || !(member[0] >= '0' && member[0] <= '3')) {
-                return QByteArray();
+            // init SEGFAULT protection: if object is destroyed, set object to 0
+            this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
+
+            // normalize signature
+            this->method = QMetaObject::normalizedSignature(this->method);
+
+            // if we have a SLOT/SIGNAL identifier, remove it
+            // Note:    code base taken from qt source (4.8.2)
+            //          src: qtimer.cpp
+            //          line: 354
+            const char* rawMethodName = this->method.data();
+            const char* bracketPosition = strchr(this->method.data(), '(');
+            if(bracketPosition && (*rawMethodName >= '0' && *rawMethodName <= '3')) {
+                this->method = QByteArray(rawMethodName + 1, bracketPosition - 1 - rawMethodName);
             }
-            return QByteArray(member+1, bracketPosition - 1 - member); // extract method name
         }
 
         Qt::ConnectionType conType;
         QObject* object = 0;
-        const char* method;
+        QByteArray method;
         QMetaObject::Connection deleteConnection;
 };
 
@@ -225,6 +234,15 @@ class QDelegate<ReturnValue(Args...)>
             // object check
             if(!object) {
                 qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
+                return;
+            }
+            this->invoker = new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType);
+        }
+
+        QDelegate(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) {
+            // object check
+            if(!object) {
+                qWarning("QDelegate<QObject,QByteArray>: object is not valid, object is not invokable!");
                 return;
             }
             this->invoker = new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType);
