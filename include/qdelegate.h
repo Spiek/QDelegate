@@ -3,6 +3,9 @@
 
 #include <QObject>
 #include <functional>
+#include <QArgument>
+#include <QGenericArgument>
+#include <QVariant>
 
 // Template to normalize T to Value Type
 template< typename T>
@@ -17,6 +20,13 @@ template< typename T>
 struct ValueType<T&>
 {  typedef typename std::remove_reference<T>::type type; };
 
+
+// Template to convert type to Reference type
+template<class T>
+T& convertToRef(T* p) { return *p; }
+
+template<class T>
+T& convertToRef(T& r) { return r; }
 
 //
 // Base Invoker
@@ -103,9 +113,13 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
                 qWarning("QDelegate<QObject,const char*>::invoke: object is not valid, return default constructed value");
                 return ReturnValue();
             }
-            QGenericReturnArgument ret;
-            object->metaObject()->invokeMethod(this->object, QDelegateInvoker::extractMethodName(method), this->conType, ret, args...);
-            return (ReturnValue)ret.data();
+            ReturnValue retValue;
+            object->metaObject()->invokeMethod(this->object,
+                                               QDelegateInvoker::extractMethodName(method),
+                                               this->conType,
+                                               QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
+                                               QArgument<Args>(QVariant(args).typeName(), args)...);
+            return retValue;
         }
 
     private:
@@ -173,7 +187,7 @@ class QDelegate<ReturnValue(Args...)>
                 qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
                 return;
             }
-            this->invoker = new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method);
+            this->invoker = new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>((Object*)object, method);
         }
 
         QDelegate(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) {
