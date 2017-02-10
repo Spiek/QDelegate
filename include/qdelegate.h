@@ -196,14 +196,15 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
             // normalize signature
             this->method = QMetaObject::normalizedSignature(this->method);
 
-            // if we have a SLOT/SIGNAL identifier, remove it
+            // remove method brackets and (if present) the signal/slot identifier
             // Note:    code base taken from qt source (4.8.2)
             //          src: qtimer.cpp
             //          line: 354
             const char* rawMethodName = this->method.data();
             const char* bracketPosition = strchr(this->method.data(), '(');
-            if(bracketPosition && (*rawMethodName >= '0' && *rawMethodName <= '3')) {
-                this->method = QByteArray(rawMethodName + 1, bracketPosition - 1 - rawMethodName);
+            if(bracketPosition) {
+                bool hasSignalSlotIndetifier = (*rawMethodName >= '0' && *rawMethodName <= '3');
+                this->method = QByteArray(rawMethodName + hasSignalSlotIndetifier, bracketPosition - hasSignalSlotIndetifier - rawMethodName);
             }
         }
 
