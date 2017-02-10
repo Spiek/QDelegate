@@ -32,6 +32,7 @@ if QDelegate is used to invoke a method on a QObject, there are a few **more** p
   QDelegate<int(int, int)>(QObject, SIGNAL(mysignal(int, int)), Qt::DirectConnection).invoke(10, 7);
   QDelegate<int(int, int)>(QObject, SLOT(myslot(int, int)), Qt::DirectConnection).invoke(10, 6);
 ```
-Note:
+Additional Notes to QObject QDelegates:
 * Function names provided as string are normalized as much as possible
 * If you set the Qt::ConnectionType to Qt::QueuedConnection invoke will return a default constructed value of the return value and invoke the function async!
+* SEGFAULT protection: QDelegate automaticly detects deletions of QObjects
