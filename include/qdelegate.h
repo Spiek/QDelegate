@@ -235,12 +235,17 @@ template<typename ReturnValue, typename... Args>
 class QDelegate<ReturnValue(Args...)>
 {
     public:
+        // constructors
+        QDelegate(const QDelegate<ReturnValue(Args...)>& other) {
+            this->invoker = other.invoker;
+        }
+
         QDelegate(std::function<ReturnValue(Args...)> functor) {
-            this->invoker = new QDelegateInvoker<ReturnValue(Args...)>(functor);
+            this->invoker.reset(new QDelegateInvoker<ReturnValue(Args...)>(functor));
         }
 
         QDelegate(ReturnValue (*method)(Args...))  {
-            this->invoker = new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method);
+            this->invoker.reset(new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method));
         }
 
         template<typename Object, typename std::enable_if<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
@@ -281,10 +286,13 @@ class QDelegate<ReturnValue(Args...)>
             this->invoker = new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType);
         }
 
-        ~QDelegate() {
-            delete this->invoker;
+        // operators
+        QDelegate<ReturnValue(Args...)>& operator=(QDelegate<ReturnValue(Args...)> &&other) {
+            this->invoker = other.invoker;
+            return *this;
         }
 
+        // functions
         ReturnValue invoke(Args... args) {
             // if no invoker is present, return default constrcuted value
             if(!this->invoker) {
@@ -297,7 +305,7 @@ class QDelegate<ReturnValue(Args...)>
         }
 
     private:
-         QDelegateInvoker<ReturnValue(Args...)>* invoker = 0;
+		QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>> invoker;
 };
 
 #endif // QDELEGATE_H

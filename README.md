@@ -7,6 +7,9 @@ QDelegate provides easy to use delegates for:
 * Object functions
 * QObject SIGNALS/SLOTS
 
+Additional Features:
+* QDelegate is implicit shared, so you can copy it around as much as you like :-)
+
 ### Standard Invokes
 
 ```c++
