@@ -243,7 +243,7 @@ class QDelegate<ReturnValue(Args...)>
             this->invoker = new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method);
         }
 
-        template<typename Object, typename = std::enable_if_t<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>>
+        template<typename Object, typename std::enable_if<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
         QDelegate(Object* object, ReturnValue (Object::*method)(Args...)) {
             // object check
             if(!object) {
@@ -253,7 +253,7 @@ class QDelegate<ReturnValue(Args...)>
             this->invoker = new QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method);
         }
 
-        template<typename Object, typename = std::enable_if_t<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>>
+        template<typename Object, typename std::enable_if<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
         QDelegate(QObject* object, ReturnValue (Object::*method)(Args...)) {
             // object check
             if(!object) {
