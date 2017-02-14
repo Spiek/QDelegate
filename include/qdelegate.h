@@ -50,16 +50,16 @@ template <typename...> class QDelegateInvoker;
 template<typename ReturnValue, typename... Args>
 class QDelegateInvoker<ReturnValue(Args...)>
 {
-    public:
-        QDelegateInvoker() { }
-        virtual ~QDelegateInvoker() { }
-        QDelegateInvoker(std::function<ReturnValue(Args...)> functor) : functor(functor) { }
-        virtual ReturnValue invoke(Args... args) {
-            return this->functor(args...);
-        }
+	public:
+		QDelegateInvoker() { }
+		virtual ~QDelegateInvoker() { }
+		QDelegateInvoker(std::function<ReturnValue(Args...)> functor) : functor(functor) { }
+		virtual ReturnValue invoke(Args... args) {
+			return this->functor(args...);
+		}
 
-    private:
-        std::function<ReturnValue(Args...)> functor;
+	private:
+		std::function<ReturnValue(Args...)> functor;
 };
 
 //
@@ -68,15 +68,15 @@ class QDelegateInvoker<ReturnValue(Args...)>
 template<typename Object, typename Method, typename ReturnValue, typename... Args>
 class QDelegateInvoker<Object,Method,ReturnValue(Args...)> : public QDelegateInvoker<ReturnValue(Args...)>
 {
-    public:
-        QDelegateInvoker(Object* object, Method method) : object(object), method(method) { }
-        virtual ReturnValue invoke(Args... args) override {
-            return std::bind(this->method, this->object, args...)();
-        }
+	public:
+		QDelegateInvoker(Object* object, Method method) : object(object), method(method) { }
+		virtual ReturnValue invoke(Args... args) override {
+			return std::bind(this->method, this->object, args...)();
+		}
 
-    private:
-        Object* object = 0;
-        Method method;
+	private:
+		Object* object = 0;
+		Method method;
 };
 
 //
@@ -85,26 +85,26 @@ class QDelegateInvoker<Object,Method,ReturnValue(Args...)> : public QDelegateInv
 template<typename Placeholder, typename Object, typename Method, typename ReturnValue, typename... Args>
 class QDelegateInvoker<Placeholder,Object,Method,ReturnValue(Args...)> : public QDelegateInvoker<ReturnValue(Args...)>
 {
-    public:
-        QDelegateInvoker(Object* object, Method method) : object(object), method(method) {
-            this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
-        }
-        ~QDelegateInvoker() {
-            QObject::disconnect(this->deleteConnection);
-        }
-        virtual ReturnValue invoke(Args... args) override {
-            // if no valid object is present, return default constrcuted value
-            if(!this->object) {
-                qWarning("QDelegate<QObject>::invoke: object is not valid, return default constructed value");
-                return ReturnValue();
-            }
-            return std::bind(this->method, this->object, args...)();
-        }
+	public:
+		QDelegateInvoker(Object* object, Method method) : object(object), method(method) {
+			this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
+		}
+		~QDelegateInvoker() {
+			QObject::disconnect(this->deleteConnection);
+		}
+		virtual ReturnValue invoke(Args... args) override {
+			// if no valid object is present, return default constrcuted value
+			if(!this->object) {
+				qWarning("QDelegate<QObject>::invoke: object is not valid, return default constructed value");
+				return ReturnValue();
+			}
+			return std::bind(this->method, this->object, args...)();
+		}
 
-    private:
-        Object* object = 0;
-        Method method;
-        QMetaObject::Connection deleteConnection;
+	private:
+		Object* object = 0;
+		Method method;
+		QMetaObject::Connection deleteConnection;
 };
 
 
@@ -114,104 +114,104 @@ class QDelegateInvoker<Placeholder,Object,Method,ReturnValue(Args...)> : public 
 template<typename ReturnValue, typename... Args>
 class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<ReturnValue(Args...)>
 {
-    public:
-        QDelegateInvoker(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) : conType(conType), object(object), method(method) {
-            this->initialize();
-        }
-        QDelegateInvoker(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) : conType(conType), object(object), method(method) {
-            this->initialize();
-        }
-        ~QDelegateInvoker() {
-            QObject::disconnect(this->deleteConnection);
-        }
-        virtual ReturnValue invoke(Args... args) override {
-            typename IsVoidType<ReturnValue>::type vType;
-            return this->invokeHelper(vType, args...);
-        }
+	public:
+		QDelegateInvoker(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) : conType(conType), object(object), method(method) {
+			this->initialize();
+		}
+		QDelegateInvoker(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) : conType(conType), object(object), method(method) {
+			this->initialize();
+		}
+		~QDelegateInvoker() {
+			QObject::disconnect(this->deleteConnection);
+		}
+		virtual ReturnValue invoke(Args... args) override {
+			typename IsVoidType<ReturnValue>::type vType;
+			return this->invokeHelper(vType, args...);
+		}
 
-    private:
-        // invoker for void return value
-        ReturnValue invokeHelper(std::true_type const &, Args... args)
-        {
-            // if no valid object is present, exit
-            if(!this->object) {
-                qWarning("QDelegate<QObject,QByteArray>: object is not valid, return default constructed value");
-                return;
-            }
+	private:
+		// invoker for void return value
+		ReturnValue invokeHelper(std::true_type const &, Args... args)
+		{
+			// if no valid object is present, exit
+			if(!this->object) {
+				qWarning("QDelegate<QObject,QByteArray>: object is not valid, return default constructed value");
+				return;
+			}
 
-            // invoke
-            if(!this->object->metaObject()->invokeMethod(this->object,
-                                                         this->method,
-                                                         this->conType,
-                                                         QArgument<Args>(QVariant(args).typeName(), args)...))
-            {
-                qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
-            }
-        }
+			// invoke
+			if(!this->object->metaObject()->invokeMethod(this->object,
+														 this->method,
+														 this->conType,
+														 QArgument<Args>(QVariant(args).typeName(), args)...))
+			{
+				qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
+			}
+		}
 
-        // invoker for non void return value
-        ReturnValue invokeHelper(std::false_type const &, Args... args)
-        {
-            // if no valid object is present, exit with default value
-            ReturnValue retValue = {};
-            if(!this->object) {
-                qWarning("QDelegate<QObject,QByteArray>: object is not valid, return default constructed value");
-                return retValue;
-            }
+		// invoker for non void return value
+		ReturnValue invokeHelper(std::false_type const &, Args... args)
+		{
+			// if no valid object is present, exit with default value
+			ReturnValue retValue = {};
+			if(!this->object) {
+				qWarning("QDelegate<QObject,QByteArray>: object is not valid, return default constructed value");
+				return retValue;
+			}
 
-            // Queued Invoke: do an invoke without ReturnValue, and return the default value
-            if(this->conType == Qt::QueuedConnection)
-            {
-                if(this->object->metaObject()->invokeMethod(this->object,
-                                                            this->method,
-                                                            this->conType,
-                                                            QArgument<Args>(QVariant(args).typeName(), args)...))
-                {
-                    return retValue;
-                }
-            }
+			// Queued Invoke: do an invoke without ReturnValue, and return the default value
+			if(this->conType == Qt::QueuedConnection)
+			{
+				if(this->object->metaObject()->invokeMethod(this->object,
+															this->method,
+															this->conType,
+															QArgument<Args>(QVariant(args).typeName(), args)...))
+				{
+					return retValue;
+				}
+			}
 
-            // Non Queued invoke: invoke and return retValue on success
-            else {
-                if(this->object->metaObject()->invokeMethod(this->object,
-                                                         this->method,
-                                                         this->conType,
-                                                         QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
-                                                         QArgument<Args>(QVariant(args).typeName(), args)...))
-                {
-                    return retValue;
-                }
-           }
+			// Non Queued invoke: invoke and return retValue on success
+			else {
+				if(this->object->metaObject()->invokeMethod(this->object,
+														 this->method,
+														 this->conType,
+														 QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
+														 QArgument<Args>(QVariant(args).typeName(), args)...))
+				{
+					return retValue;
+				}
+		   }
 
-            // if we reach this point there was an invoke error, so show warning and return default value
-            qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
-            return retValue;
-        }
+			// if we reach this point there was an invoke error, so show warning and return default value
+			qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
+			return retValue;
+		}
 
-        void initialize()
-        {
-            // init SEGFAULT protection: if object is destroyed, set object to 0
-            this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
+		void initialize()
+		{
+			// init SEGFAULT protection: if object is destroyed, set object to 0
+			this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
 
-            // normalize signature
-            this->method = QMetaObject::normalizedSignature(this->method);
+			// normalize signature
+			this->method = QMetaObject::normalizedSignature(this->method);
 
-            // remove method brackets and (if present) the signal/slot identifier
-            // Note:    code base taken from qt source (4.8.2)
-            //          src: qtimer.cpp
-            //          line: 354
-            const char* rawMethodName = this->method.data();
-            const char* bracketPosition = strchr(this->method.data(), '(');
-            if(bracketPosition) {
-                bool hasSignalSlotIndetifier = (*rawMethodName >= '0' && *rawMethodName <= '3');
-                this->method = QByteArray(rawMethodName + hasSignalSlotIndetifier, bracketPosition - hasSignalSlotIndetifier - rawMethodName);
-            }
-        }
+			// remove method brackets and (if present) the signal/slot identifier
+			// Note:    code base taken from qt source (4.8.2)
+			//          src: qtimer.cpp
+			//          line: 354
+			const char* rawMethodName = this->method.data();
+			const char* bracketPosition = strchr(this->method.data(), '(');
+			if(bracketPosition) {
+				bool hasSignalSlotIndetifier = (*rawMethodName >= '0' && *rawMethodName <= '3');
+				this->method = QByteArray(rawMethodName + hasSignalSlotIndetifier, bracketPosition - hasSignalSlotIndetifier - rawMethodName);
+			}
+		}
 
-        Qt::ConnectionType conType;
-        QObject* object = 0;
-        QByteArray method;
-        QMetaObject::Connection deleteConnection;
+		Qt::ConnectionType conType;
+		QObject* object = 0;
+		QByteArray method;
+		QMetaObject::Connection deleteConnection;
 };
 
 //
@@ -220,97 +220,97 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
 template<typename Method, typename ReturnValue, typename... Args>
 class QDelegateInvoker<Method,ReturnValue(Args...)> : public QDelegateInvoker<ReturnValue(Args...)>
 {
-    public:
-        QDelegateInvoker(Method method) : method(method) { }
-        virtual ReturnValue invoke(Args... args) override {
-            return std::bind(this->method, args...)();
-        }
+	public:
+		QDelegateInvoker(Method method) : method(method) { }
+		virtual ReturnValue invoke(Args... args) override {
+			return std::bind(this->method, args...)();
+		}
 
-    private:
-        Method method;
+	private:
+		Method method;
 };
 
 template <typename...> class QDelegate;
 template<typename ReturnValue, typename... Args>
 class QDelegate<ReturnValue(Args...)>
 {
-    public:
+	public:
 		// Constructor: copy
-        QDelegate(const QDelegate<ReturnValue(Args...)>& other) {
-            this->invoker = other.invoker;
-        }
+		QDelegate(const QDelegate<ReturnValue(Args...)>& other) {
+			this->invoker = other.invoker;
+		}
 
 		// Constructor: function object
-        QDelegate(std::function<ReturnValue(Args...)> functor) {
-            this->invoker.reset(new QDelegateInvoker<ReturnValue(Args...)>(functor));
-        }
+		QDelegate(std::function<ReturnValue(Args...)> functor) {
+			this->invoker.reset(new QDelegateInvoker<ReturnValue(Args...)>(functor));
+		}
 
 		// Constructor: static function
-        QDelegate(ReturnValue (*method)(Args...))  {
-            this->invoker.reset(new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method));
-        }
+		QDelegate(ReturnValue (*method)(Args...))  {
+			this->invoker.reset(new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method));
+		}
 
 		// Constructor: function on Object
-        template<typename Object, typename std::enable_if<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
-        QDelegate(Object* object, ReturnValue (Object::*method)(Args...)) {
-            // object check
-            if(!object) {
-                qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
-                return;
-            }
+		template<typename Object, typename std::enable_if<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
+		QDelegate(Object* object, ReturnValue (Object::*method)(Args...)) {
+			// object check
+			if(!object) {
+				qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
+				return;
+			}
 			this->invoker.reset(QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method));
-        }
+		}
 
 		// Constructor: function on QObject
-        template<typename Object, typename std::enable_if<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
-        QDelegate(QObject* object, ReturnValue (Object::*method)(Args...)) {
-            // object check
-            if(!object) {
-                qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
-                return;
-            }
+		template<typename Object, typename std::enable_if<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
+		QDelegate(QObject* object, ReturnValue (Object::*method)(Args...)) {
+			// object check
+			if(!object) {
+				qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
+				return;
+			}
 			this->invoker.reset(new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>((Object*)object, method));
-        }
+		}
 
 		// Constructor: const char* function on QObject
-        QDelegate(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) {
-            // object check
-            if(!object) {
-                qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
-                return;
-            }
+		QDelegate(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) {
+			// object check
+			if(!object) {
+				qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
+				return;
+			}
 			this->invoker.reset(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType));
-        }
+		}
 
 		// Constructor: QBytearray function on QObject
-        QDelegate(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) {
-            // object check
-            if(!object) {
-                qWarning("QDelegate<QObject,QByteArray>: object is not valid, object is not invokable!");
-                return;
-            }
+		QDelegate(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) {
+			// object check
+			if(!object) {
+				qWarning("QDelegate<QObject,QByteArray>: object is not valid, object is not invokable!");
+				return;
+			}
 			this->invoker.reset(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType));
-        }
+		}
 
-        // operators
-        QDelegate<ReturnValue(Args...)>& operator=(QDelegate<ReturnValue(Args...)> &&other) {
-            this->invoker = other.invoker;
-            return *this;
-        }
+		// operators
+		QDelegate<ReturnValue(Args...)>& operator=(QDelegate<ReturnValue(Args...)> &&other) {
+			this->invoker = other.invoker;
+			return *this;
+		}
 
-        // functions
-        ReturnValue invoke(Args... args) {
-            // if no invoker is present, return default constrcuted value
-            if(!this->invoker) {
-                qWarning("QDelegate::invoke: No valid invoker available, return default constrcuted value");
-                return ReturnValue();
-            }
+		// functions
+		ReturnValue invoke(Args... args) {
+			// if no invoker is present, return default constrcuted value
+			if(!this->invoker) {
+				qWarning("QDelegate::invoke: No valid invoker available, return default constrcuted value");
+				return ReturnValue();
+			}
 
-            // otherwise call invoker
-            return this->invoker->invoke(args...);
-        }
+			// otherwise call invoker
+			return this->invoker->invoke(args...);
+		}
 
-    private:
+	private:
 		QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>> invoker;
 };
 
