@@ -235,19 +235,22 @@ template<typename ReturnValue, typename... Args>
 class QDelegate<ReturnValue(Args...)>
 {
     public:
-        // constructors
+		// Constructor: copy
         QDelegate(const QDelegate<ReturnValue(Args...)>& other) {
             this->invoker = other.invoker;
         }
 
+		// Constructor: function object
         QDelegate(std::function<ReturnValue(Args...)> functor) {
             this->invoker.reset(new QDelegateInvoker<ReturnValue(Args...)>(functor));
         }
 
+		// Constructor: static function
         QDelegate(ReturnValue (*method)(Args...))  {
             this->invoker.reset(new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method));
         }
 
+		// Constructor: function on Object
         template<typename Object, typename std::enable_if<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
         QDelegate(Object* object, ReturnValue (Object::*method)(Args...)) {
             // object check
@@ -255,9 +258,10 @@ class QDelegate<ReturnValue(Args...)>
                 qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
                 return;
             }
-            this->invoker = new QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method);
+			this->invoker.reset(QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method));
         }
 
+		// Constructor: function on QObject
         template<typename Object, typename std::enable_if<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
         QDelegate(QObject* object, ReturnValue (Object::*method)(Args...)) {
             // object check
@@ -265,25 +269,27 @@ class QDelegate<ReturnValue(Args...)>
                 qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
                 return;
             }
-            this->invoker = new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>((Object*)object, method);
+			this->invoker.reset(new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>((Object*)object, method));
         }
 
+		// Constructor: const char* function on QObject
         QDelegate(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) {
             // object check
             if(!object) {
                 qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
                 return;
             }
-            this->invoker = new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType);
+			this->invoker.reset(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType));
         }
 
+		// Constructor: QBytearray function on QObject
         QDelegate(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) {
             // object check
             if(!object) {
                 qWarning("QDelegate<QObject,QByteArray>: object is not valid, object is not invokable!");
                 return;
             }
-            this->invoker = new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType);
+			this->invoker.reset(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType));
         }
 
         // operators
