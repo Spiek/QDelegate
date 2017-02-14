@@ -42,6 +42,27 @@ template<>
 struct IsVoidType<void>
 { typedef std::true_type type; };
 
+
+// If T is void type, type is void otherwise C
+template<typename T, typename C>
+struct IfTVoidOtherwiseC
+{ typedef C type; };
+
+template<typename C>
+struct IfTVoidOtherwiseC<void,C>
+{ typedef void type; };
+
+
+// If T is void type, type is void* otherwise T
+template<typename T>
+struct UseableType
+{ typedef T type; };
+
+template<>
+struct UseableType<void>
+{ typedef void* type; };
+
+
 //
 // Base Invoker
 // and Invoker for function objects
@@ -235,9 +256,12 @@ template<typename ReturnValue, typename... Args>
 class QDelegate<ReturnValue(Args...)>
 {
 	public:
+		// Constructor: default
+		QDelegate() { }
+
 		// Constructor: copy
 		QDelegate(const QDelegate<ReturnValue(Args...)>& other) {
-			this->invoker = other.invoker;
+			this->invokers = other.invokers;
 		}
 
 		// Constructor: function object
@@ -246,8 +270,8 @@ class QDelegate<ReturnValue(Args...)>
 		}
 
 		// Constructor: static function
-		QDelegate(ReturnValue (*method)(Args...))  {
-			this->invoker.reset(new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method));
+		QDelegate(ReturnValue (*method)(Args...)){
+			this->addInvoker(method);
 		}
 
 		// Constructor: function on Object
@@ -258,7 +282,7 @@ class QDelegate<ReturnValue(Args...)>
 				qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
 				return;
 			}
-			this->invoker.reset(QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method));
+			this->addInvoker(object, method);
 		}
 
 		// Constructor: function on QObject
@@ -269,7 +293,7 @@ class QDelegate<ReturnValue(Args...)>
 				qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
 				return;
 			}
-			this->invoker.reset(new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>((Object*)object, method));
+			this->addInvoker((Object*)object, method);
 		}
 
 		// Constructor: const char* function on QObject
@@ -279,7 +303,7 @@ class QDelegate<ReturnValue(Args...)>
 				qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
 				return;
 			}
-			this->invoker.reset(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType));
+			this->addInvoker(object, method, conType);
 		}
 
 		// Constructor: QBytearray function on QObject
@@ -289,29 +313,130 @@ class QDelegate<ReturnValue(Args...)>
 				qWarning("QDelegate<QObject,QByteArray>: object is not valid, object is not invokable!");
 				return;
 			}
-			this->invoker.reset(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType));
+			this->addInvoker(object, method, conType);
+		}
+
+		// addInvoker: function object
+		void addInvoker(std::function<ReturnValue(Args...)> functor) {
+			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<ReturnValue(Args...)>(functor)));
+		}
+
+		// addInvoker: static function
+		void addInvoker(ReturnValue (*method)(Args...))  {
+			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<ReturnValue (*)(Args...),ReturnValue(Args...)>(method)));
+		}
+
+		// addInvoker: function on Object
+		template<typename Object, typename std::enable_if<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
+		void addInvoker(Object* object, ReturnValue (Object::*method)(Args...)) {
+			// object check
+			if(!object) {
+				qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
+				return;
+			}
+			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method)));
+		}
+
+		// addInvoker: function on QObject
+		template<typename Object, typename std::enable_if<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
+		void addInvoker(QObject* object, ReturnValue (Object::*method)(Args...)) {
+			// object check
+			if(!object) {
+				qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
+				return;
+			}
+			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>((Object*)object, method)));
+		}
+
+		// addInvoker: const char* function on QObject
+		void addInvoker(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) {
+			// object check
+			if(!object) {
+				qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
+				return;
+			}
+			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType)));
+		}
+
+		// addInvoker: QBytearray function on QObject
+		void addInvoker(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) {
+			// object check
+			if(!object) {
+				qWarning("QDelegate<QObject,QByteArray>: object is not valid, object is not invokable!");
+				return;
+			}
+			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType)));
 		}
 
 		// operators
 		QDelegate<ReturnValue(Args...)>& operator=(QDelegate<ReturnValue(Args...)> &&other) {
-			this->invoker = other.invoker;
+			this->invokers = other.invokers;
 			return *this;
 		}
 
-		// functions
-		ReturnValue invoke(Args... args) {
-			// if no invoker is present, return default constrcuted value
-			if(!this->invoker) {
-				qWarning("QDelegate::invoke: No valid invoker available, return default constrcuted value");
+		// invoke index 0
+		inline ReturnValue invokeSingle(Args... args) {
+			return this->invokeSingle(0, args...);
+		}
+
+		// invoke by index
+		ReturnValue invokeSingle(int index, Args... args) {
+			// if we have no invokeable delegate for index, return default value
+			if(this->invokers.count() <= index) {
+				qWarning("QDelegate::invoke: No invoker for index %i available, return default constrcuted value", index);
 				return ReturnValue();
 			}
 
-			// otherwise call invoker
-			return this->invoker->invoke(args...);
+			// if invoker is not valid, return default constrcuted value
+			auto& invoker = this->invokers.at(index);
+			if(!invoker) {
+				qWarning("QDelegate::invoke: No valid invoker for index %i available, return default constrcuted value", index);
+				return ReturnValue();
+			}
+
+			// invoke
+			return invoker->invoke(args...);
+		}
+
+		typename IfTVoidOtherwiseC<ReturnValue, QList<ReturnValue>>::type
+		invoke(Args... args) {
+			typename IsVoidType<typename ValueType<ReturnValue>::type>::type vType;
+			return this->invokeHelper(vType, args...);
 		}
 
 	private:
-		QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>> invoker;
+		// invokeHelper for void type
+		void invokeHelper(std::true_type, Args... args) {
+			for(auto& invoker : this->invokers) {
+				// if invoker is not valid, skip it
+				if(!invoker) {
+					qWarning("QDelegate::invokeAll: No valid invoker available, skip");
+					continue;
+				}
+
+				// invoke
+				invoker->invoke(args...);
+			}
+		}
+
+		// invokeHelper for non void type
+		QList<typename UseableType<ReturnValue>::type> invokeHelper(std::false_type, Args... args) {
+			QList<typename UseableType<ReturnValue>::type> returnValues;
+			for(auto& invoker : this->invokers) {
+				// if invoker is not valid, skip it
+				if(!invoker) {
+					qWarning("QDelegate::invokeAll: No valid invoker available, skip");
+					continue;
+				}
+
+				// invoke
+				returnValues.append(invoker->invoke(args...));
+			}
+			return returnValues;
+		}
+
+		// data
+		QList<QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>> invokers;
 };
 
 #endif // QDELEGATE_H
