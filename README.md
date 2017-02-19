@@ -18,7 +18,7 @@ Additional Features:
   QDelegate<int(int, int)>(&staticFunction).invoke(10, 2);
 
   // function objects
-  QDelegate<int(int, int)>([](int a, int b){ return a + b; }).invoke(10, 3);
+  QDelegate<int(int, int)>(+[](int a, int b){ return a + b; }).invoke(10, 3);
 
   // dynamic objects
   QDelegate<int(int, int)>(MyObject, &MyObject::myfunction).invoke(10, 4);
