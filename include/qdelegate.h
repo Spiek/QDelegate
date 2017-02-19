@@ -146,8 +146,7 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
 			QObject::disconnect(this->deleteConnection);
 		}
 		virtual ReturnValue invoke(Args... args) override {
-			typename IsVoidType<ReturnValue>::type vType;
-			return this->invokeHelper(vType, args...);
+			return this->invokeHelper(this->isReturnTypeVoid, args...);
 		}
 
 	private:
@@ -229,6 +228,8 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
 			}
 		}
 
+		// data
+		typename IsVoidType<typename ValueType<ReturnValue>::type>::type isReturnTypeVoid;
 		Qt::ConnectionType conType;
 		QObject* object = 0;
 		QByteArray method;
@@ -382,13 +383,12 @@ class QDelegate<ReturnValue(Args...)>
 		// full invoke
 		typename IfTVoidOtherwiseC<ReturnValue, QList<ReturnValue>>::type
 		invoke(Args... args) {
-			typename IsVoidType<typename ValueType<ReturnValue>::type>::type vType;
-			return this->invokeHelper(vType, args...);
+			return this->invokeHelper(this->isReturnTypeVoid, args...);
 		}
 
 		// fast invoke
 		inline void fastInvoke(Args... args) {
-			this->invokeHelper(this->tTrue, args...);
+			this->invokeHelper(this->typeTrue, args...);
 		}
 
 	private:
@@ -425,7 +425,8 @@ class QDelegate<ReturnValue(Args...)>
 		}
 
 		// data
-		const static std::true_type tTrue;
+		typename IsVoidType<typename ValueType<ReturnValue>::type>::type isReturnTypeVoid;
+		const static std::true_type typeTrue;
 		QList<QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>> invokers;
 };
 
