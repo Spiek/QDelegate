@@ -404,11 +404,16 @@ class QDelegate<ReturnValue(Args...)>
 			return this->invokeHelper(vType, args...);
 		}
 
+		inline void invokeNoReturn(Args... args) {
+			this->invokeHelper(this->tTrue, args...);
+		}
+
 	private:
 		// invokeHelper for void type
 		void invokeHelper(std::true_type, Args... args) {
-			for(auto& invoker : this->invokers) {
+			for(int i = 0; i < this->invokers.count(); i++) {
 				// if invoker is not valid, skip it
+				auto& invoker = this->invokers.at(i);
 				if(!invoker) {
 					qWarning("QDelegate::invokeAll: No valid invoker available, skip");
 					continue;
@@ -422,8 +427,9 @@ class QDelegate<ReturnValue(Args...)>
 		// invokeHelper for non void type
 		QList<typename UseableType<ReturnValue>::type> invokeHelper(std::false_type, Args... args) {
 			QList<typename UseableType<ReturnValue>::type> returnValues;
-			for(auto& invoker : this->invokers) {
+			for(int i = 0; i < this->invokers.count(); i++) {
 				// if invoker is not valid, skip it
+				auto& invoker = this->invokers.at(i);
 				if(!invoker) {
 					qWarning("QDelegate::invokeAll: No valid invoker available, skip");
 					continue;
@@ -436,6 +442,7 @@ class QDelegate<ReturnValue(Args...)>
 		}
 
 		// data
+		const static std::true_type tTrue;
 		QList<QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>> invokers;
 };
 
