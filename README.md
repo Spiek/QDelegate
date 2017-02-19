@@ -8,7 +8,7 @@ QDelegate provides easy to use delegates for:
 * QObject SIGNALS/SLOTS
 
 Additional Features:
-* QDelegate is implicit shared, so you can copy it around as much as you like :-)
+* QDelegate is implicit shared, so you can copy it around as much as you like.
 
 ### Standard Invokes
 
@@ -41,3 +41,27 @@ Additional Notes to QObject QDelegates:
 * Function names provided as string are normalized, meaning the following function syntaxes are possible: "function()", "function"
 * If you set the Qt::ConnectionType to Qt::QueuedConnection invoke will return a default constructed value of the return value and invoke the function async!
 * SEGFAULT protection: QDelegate automaticly detects deletions of QObjects
+
+### Multiple Invokes
+
+QDelegate support the call of multiple invokes (with the same function signature):
+```c++
+  // declare delegate to invoke &MyObject::staticFunction and a Functor
+  auto delegate = QDelegate<int(int, int)>(&MyObject::staticFunction);
+  delegate.addInvoke(+[](int a, int b){ return a + b; });
+  
+  // calls &MyObject::staticFunction and then the Functor
+  QList<int> returnValues = delegate.invoke(12, 23);
+ 
+  // it's also possible to speed up the invoke massivly by ignoring the return value
+  delegate.fastInvoke(12, 23); // returns: void
+  
+```
+The function addInvoke returns a reference to itself, so it's also useable in a chain:
+```c++
+  // invoke &MyObject::staticFunction and a Functor and save their return values
+  QList<int> returnValues = QDelegate<int(int, int)>(&MyObject::staticFunction)
+                            .addInvoke(+[](int a, int b){ return a + b; })
+                            .invoke(12, 32);
+  
+```
