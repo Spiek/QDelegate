@@ -242,13 +242,13 @@ template<typename Method, typename ReturnValue, typename... Args>
 class QDelegateInvoker<Method,ReturnValue(Args...)> : public QDelegateInvoker<ReturnValue(Args...)>
 {
 	public:
-		QDelegateInvoker(Method method) : method(method) { }
+		QDelegateInvoker(Method method) : functor(method) { }
 		virtual ReturnValue invoke(Args... args) override {
-			return std::bind(this->method, args...)();
+			return this->functor(args...);
 		}
 
 	private:
-		Method method;
+		std::function<ReturnValue(Args...)> functor;
 };
 
 template <typename...> class QDelegate;
