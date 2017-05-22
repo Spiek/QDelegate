@@ -276,18 +276,18 @@ class QDelegate<ReturnValue(Args...)>
 		}
 
 		// Constructor: function on Object
-		template<typename Object, typename std::enable_if<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
+        template<class Object, typename = std::enable_if_t<!std::is_base_of<QObject, typename ValueType<Object>::type>::value> >
 		QDelegate(Object* object, ReturnValue (Object::*method)(Args...)) {
 			// object check
 			if(!object) {
 				qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
-				return;
+                return;
 			}
 			this->addInvoke(object, method);
 		}
 
 		// Constructor: function on QObject
-		template<typename Object, typename std::enable_if<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
+        template<class Object, typename = std::enable_if_t<std::is_base_of<QObject, typename ValueType<Object>::type>::value> >
 		QDelegate(QObject* object, ReturnValue (Object::*method)(Args...)) {
 			// object check
 			if(!object) {
@@ -330,24 +330,24 @@ class QDelegate<ReturnValue(Args...)>
 		}
 
 		// addInvoke: function on Object
-		template<typename Object, typename std::enable_if<!std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
+        template<class Object, typename = std::enable_if_t<!std::is_base_of<QObject, typename ValueType<Object>::type>::value> >
 		QDelegate<ReturnValue(Args...)>& addInvoke(Object* object, ReturnValue (Object::*method)(Args...)) {
 			// object check
 			if(!object) {
 				qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
-				return;
+                return *this;
 			}
 			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>(object, method)));
 			return *this;
 		}
 
 		// addInvoke: function on QObject
-		template<typename Object, typename std::enable_if<std::is_base_of<QObject, typename ValueType<Object>::type>::value, Object>::type>
+        template<class Object, typename = std::enable_if_t<std::is_base_of<QObject, typename ValueType<Object>::type>::value> >
 		QDelegate<ReturnValue(Args...)>& addInvoke(QObject* object, ReturnValue (Object::*method)(Args...)) {
 			// object check
 			if(!object) {
 				qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
-				return;
+                return *this;
 			}
 			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<void,Object,ReturnValue (Object::*)(Args...),ReturnValue(Args...)>((Object*)object, method)));
 			return *this;
@@ -358,7 +358,7 @@ class QDelegate<ReturnValue(Args...)>
 			// object check
 			if(!object) {
 				qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
-				return;
+                return *this;
 			}
 			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType)));
 		}
@@ -368,7 +368,7 @@ class QDelegate<ReturnValue(Args...)>
 			// object check
 			if(!object) {
 				qWarning("QDelegate<QObject,QByteArray>: object is not valid, object is not invokable!");
-				return;
+                return *this;
 			}
 			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType)));
 			return *this;
