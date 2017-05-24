@@ -7,6 +7,8 @@ QDelegate provides easy to use delegates for:
 * Object functions
 * QObject Signals/Slots (via SIGNAL/SLOT Macro or as String)
 
+----------
+
 ### Standard Invokes
 
 ```c++
@@ -20,6 +22,8 @@ QDelegate provides easy to use delegates for:
   // class objects
   QDelegate<int(int, int)>(MyObject, &MyObject::myfunction).invoke(10, 4);
 ```
+
+----------
 
 ### QObject Invokes
 
@@ -37,6 +41,8 @@ Additional Notes to QObject QDelegates:
   "function()", "function", "function(int,bool)"
 * If you set the Qt::ConnectionType to Qt::QueuedConnection invoke will return a default constructed value of the return value and invoke the function async!
 * QDelegate automaticly detects deletions of QObjects and don't invoke them (SEGFAULT protection)
+
+----------
 
 ### Multiple Invokes
 
@@ -61,6 +67,8 @@ The function addInvoke returns a reference to itself, so it's also useable in a 
                             .invoke(12, 32);
   
 ```
+
+----------
 
 ### Installation
 
