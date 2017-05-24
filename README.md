@@ -61,3 +61,10 @@ The function addInvoke returns a reference to itself, so it's also useable in a 
                             .invoke(12, 32);
   
 ```
+
+### Installation
+
+It's very easy, just add the following to your Project file:
+```qmake
+include(QDelegate.pri)
+```
