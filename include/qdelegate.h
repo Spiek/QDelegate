@@ -278,42 +278,22 @@ class QDelegate<ReturnValue(Args...)>
 		// Constructor: function on Object
 		template<class Object, typename = std::enable_if_t<!std::is_base_of<QObject, typename ValueType<Object>::type>::value> >
 		QDelegate(Object* object, ReturnValue (Object::*method)(Args...)) {
-			// object check
-			if(!object) {
-				qWarning("QDelegate<Object>: object is not valid, object is not invokable!");
-				return;
-			}
 			this->addInvoke(object, method);
 		}
 
 		// Constructor: function on QObject
 		template<class Object, typename = std::enable_if_t<std::is_base_of<QObject, typename ValueType<Object>::type>::value> >
 		QDelegate(QObject* object, ReturnValue (Object::*method)(Args...)) {
-			// object check
-			if(!object) {
-				qWarning("QDelegate<QObject>: object is not valid, object is not invokable!");
-				return;
-			}
 			this->addInvoke((Object*)object, method);
 		}
 
 		// Constructor: const char* function on QObject
 		QDelegate(QObject* object, const char* method, Qt::ConnectionType conType = Qt::DirectConnection) {
-			// object check
-			if(!object) {
-				qWarning("QDelegate<QObject,const char*>: object is not valid, object is not invokable!");
-				return;
-			}
 			this->addInvoke(object, method, conType);
 		}
 
 		// Constructor: QBytearray function on QObject
 		QDelegate(QObject* object, QByteArray method, Qt::ConnectionType conType = Qt::DirectConnection) {
-			// object check
-			if(!object) {
-				qWarning("QDelegate<QObject,QByteArray>: object is not valid, object is not invokable!");
-				return;
-			}
 			this->addInvoke(object, method, conType);
 		}
 
@@ -361,6 +341,7 @@ class QDelegate<ReturnValue(Args...)>
 				return *this;
 			}
 			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<QObject,ReturnValue(Args...)>(object, method, conType)));
+			return *this;
 		}
 
 		// addInvoke: QBytearray function on QObject
