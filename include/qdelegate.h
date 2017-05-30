@@ -297,6 +297,12 @@ class QDelegate<ReturnValue(Args...)>
 			this->addInvoke(object, method, conType);
 		}
 
+        // addInvoke: QDelegate
+        QDelegate<ReturnValue(Args...)>& addInvoke(QDelegate<ReturnValue(Args...)> delegate) {
+            this->invokers.append(delegate.invokers);
+            return *this;
+        }
+
 		// addInvoke: function object
 		QDelegate<ReturnValue(Args...)>& addInvoke(std::function<ReturnValue(Args...)> functor) {
 			this->invokers.append(QSharedPointer<QDelegateInvoker<ReturnValue(Args...)>>(new QDelegateInvoker<ReturnValue(Args...)>(functor)));
