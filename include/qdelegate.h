@@ -90,8 +90,16 @@ template<typename Object, typename Method, typename ReturnValue, typename... Arg
 class QDelegateInvoker<Object,Method,ReturnValue(Args...)> : public QDelegateInvoker<ReturnValue(Args...)>
 {
 	public:
-		QDelegateInvoker(Object* object, Method method) : object(object), method(method) { }
+		QDelegateInvoker(Object* object, Method method) : object(object), method(method) {
+			// if no valid object is present, inform user
+			if(!this->object) qWarning("QDelegate<Object,Method>(): object is not valid, invoke will fail...");
+		}
 		virtual ReturnValue invoke(Args... args) override {
+			// if no valid object is present, return default constrcuted value
+			if(!this->object) {
+				qWarning("QDelegate<Object,Method>::invoke: object is not valid, return default constructed value");
+				return ReturnValue();
+			}
 			return std::bind(this->method, this->object, args...)();
 		}
 
@@ -108,7 +116,9 @@ class QDelegateInvoker<Placeholder,Object,Method,ReturnValue(Args...)> : public 
 {
 	public:
 		QDelegateInvoker(Object* object, Method method) : object(object), method(method) {
-			this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
+			// if no valid object is present, inform user
+			if(!this->object) qWarning("QDelegate<QObject,Method>(): object is not valid, invoke will fail...");
+			else this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
 		}
 		~QDelegateInvoker() {
 			QObject::disconnect(this->deleteConnection);
@@ -160,10 +170,11 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
 			}
 
 			// invoke
-			if(!this->object->metaObject()->invokeMethod(this->object,
-														 this->method,
-														 this->conType,
-														 QArgument<Args>(QVariant(args).typeName(), args)...))
+			QMetaObject* metaObject = this->object->metaObject();
+			if(!metaObject->invokeMethod(this->object,
+										 this->method,
+										 this->conType,
+										 QArgument<Args>(QVariant(args).typeName(), args)...))
 			{
 				qWarning("QDelegate<QObject,QByteArray>: invoke failed (Object: %s, Method: %s)", this->object->metaObject()->className(), this->method.isEmpty() ? "{empty}" : this->method.data());
 			}
@@ -180,12 +191,13 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
 			}
 
 			// Queued Invoke: do an invoke without ReturnValue, and return the default value
+			QMetaObject* metaObject = this->object->metaObject();
 			if(this->conType == Qt::QueuedConnection)
 			{
-				if(this->object->metaObject()->invokeMethod(this->object,
-															this->method,
-															this->conType,
-															QArgument<Args>(QVariant(args).typeName(), args)...))
+				if(metaObject->invokeMethod(this->object,
+											this->method,
+											this->conType,
+											QArgument<Args>(QVariant(args).typeName(), args)...))
 				{
 					return retValue;
 				}
@@ -193,11 +205,11 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
 
 			// Non Queued invoke: invoke and return retValue on success
 			else {
-				if(this->object->metaObject()->invokeMethod(this->object,
-														 this->method,
-														 this->conType,
-														 QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
-														 QArgument<Args>(QVariant(args).typeName(), args)...))
+				if(metaObject->invokeMethod(this->object,
+											this->method,
+											this->conType,
+											QReturnArgument<ReturnValue>(QVariant(retValue).typeName(), convertToRef<ReturnValue>(retValue)),
+											QArgument<Args>(QVariant(args).typeName(), args)...))
 				{
 					return retValue;
 				}
@@ -210,6 +222,12 @@ class QDelegateInvoker<QObject,ReturnValue(Args...)> : public QDelegateInvoker<R
 
 		void initialize()
 		{
+			// if no valid object is present, inform user
+			if(!this->object) {
+				qWarning("QDelegate<QObject,QByteArray>(): object is not valid, invoke will fail...");
+				return;
+			}
+
 			// init SEGFAULT protection: if object is destroyed, set object to 0
 			this->deleteConnection = QObject::connect(object, &QObject::destroyed, [this] { this->object = 0; });
 
@@ -267,7 +285,7 @@ class QDelegate<ReturnValue(Args...)>
 
 		// Constructor: function object
 		QDelegate(std::function<ReturnValue(Args...)> functor) {
-            this->addInvoke(functor);
+			this->addInvoke(functor);
 		}
 
 		// Constructor: static function
@@ -297,11 +315,11 @@ class QDelegate<ReturnValue(Args...)>
 			this->addInvoke(object, method, conType);
 		}
 
-        // addInvoke: QDelegate
-        QDelegate<ReturnValue(Args...)>& addInvoke(QDelegate<ReturnValue(Args...)> delegate) {
-            this->invokers.append(delegate.invokers);
-            return *this;
-        }
+		// addInvoke: QDelegate
+		QDelegate<ReturnValue(Args...)>& addInvoke(QDelegate<ReturnValue(Args...)> delegate) {
+			this->invokers.append(delegate.invokers);
+			return *this;
+		}
 
 		// addInvoke: function object
 		QDelegate<ReturnValue(Args...)>& addInvoke(std::function<ReturnValue(Args...)> functor) {
