@@ -17,7 +17,7 @@ QDelegate provides easy to use delegates for:
   QDelegate<int(int, int)>(&staticFunction).invoke(10, 2);
 
   // function objects
-  QDelegate<int(int, int)>(+[](int a, int b){ return a + b; }).invoke(10, 3);
+  QDelegate<int(int, int)>([](int a, int b){ return a + b; }).invoke(10, 3);
 
   // class objects
   QDelegate<int(int, int)>(MyObject, &MyObject::myfunction).invoke(10, 4);
@@ -50,7 +50,7 @@ QDelegate support the call of multiple invokes (with the same function signature
 ```c++
   // declare delegate to invoke &MyObject::staticFunction and a Functor
   auto delegate = QDelegate<int(int, int)>(&MyObject::staticFunction);
-  delegate.addInvoke(+[](int a, int b){ return a + b; });
+  delegate.addInvoke([](int a, int b){ return a + b; });
   
   // calls &MyObject::staticFunction and then the Functor and save their return values
   QList<int> returnValues = delegate.invoke(12, 23);
@@ -63,7 +63,7 @@ The function addInvoke returns a reference to itself, so it's also useable in a 
 ```c++
   // invoke &MyObject::staticFunction and a Functor and save their return values
   QList<int> returnValues = QDelegate<int(int, int)>(&MyObject::staticFunction)
-                            .addInvoke(+[](int a, int b){ return a + b; })
+                            .addInvoke([](int a, int b){ return a + b; })
                             .invoke(12, 32);
   
 ```

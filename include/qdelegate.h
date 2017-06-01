@@ -267,7 +267,7 @@ class QDelegate<ReturnValue(Args...)>
 
 		// Constructor: function object
 		QDelegate(std::function<ReturnValue(Args...)> functor) {
-			this->invoker.reset(new QDelegateInvoker<ReturnValue(Args...)>(functor));
+            this->addInvoke(functor);
 		}
 
 		// Constructor: static function
