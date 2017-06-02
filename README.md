@@ -76,3 +76,8 @@ It's very easy, just add the following to your Project file:
 ```qmake
 include(QDelegate.pri)
 ```
+
+----------
+
+### Licence
+The [QDelegate licence](https://github.com/Spiek/QDelegate/blob/master/LICENCE) is a modified version of the [LGPL](http://www.gnu.org/licenses/lgpl.html) licence, with a static linking exception.
